@@ -1,6 +1,8 @@
 package geneticparallel
 
 import scala.collection.mutable.ArrayBuffer
+import scalafx.scene.image.{Image, WritableImage}
+import scalafx.scene.paint.Color
 
 object Chromosome {
   val NUM_SWAP: Int = Students.N_STUDENTS / 3
@@ -73,7 +75,10 @@ case class Chromosome(seating: Array[Int]) {
 }
 
 object Population {
-  val NUM_CHROMOSOMES: Int = 50
+  val CHROM_ROWS: Int = 10
+  val CHROM_COLUMNS: Int = 15
+
+  val NUM_CHROMOSOMES: Int = CHROM_ROWS * CHROM_COLUMNS
   val NUM_REMOVE: Int = NUM_CHROMOSOMES / 2
   val NUM_KEEP: Int = NUM_CHROMOSOMES - NUM_REMOVE
 
@@ -110,15 +115,60 @@ case class Population(students: Students, chromosomes: Array[Chromosome]) {
     new Population(students, newChromosomes)
   }
 
-  def getAverageScore(): Double = {
+  def getScoreStats(): (Double, Double) = {
     val scores = for (c <- chromosomes) yield students.getScore(c)
-    scores.sum / scores.length.toDouble
+    val count = scores.length
+
+    val mean = scores.sum / scores.length.toDouble
+    val devs = scores.map(score => (score - mean) * (score - mean))
+    val stddev = Math.sqrt(devs.sum / (count - 1))
+
+    (mean, stddev)
+  }
+
+  def getImage(scalingFactor: Int): Image = {
+    val height = Population.CHROM_ROWS * scalingFactor
+    val width = Population.CHROM_COLUMNS * scalingFactor
+
+    val image = new WritableImage(width, height)
+    val pw = image.getPixelWriter
+
+    for (x <- 0 until Population.CHROM_COLUMNS; y <- 0 until Population.CHROM_ROWS) {
+      val index = y * Population.CHROM_COLUMNS + x
+
+      val c = chromosomes(index)
+      val score = students.getScore(c)
+
+      val color = pickColor(score)
+
+      for (x2 <- 0 until scalingFactor; y2 <- 0 until scalingFactor) {
+        val i1 = x * scalingFactor + x2
+        val i2 = y * scalingFactor + y2
+        pw.setColor(i1, i2, color)
+      }
+    }
+
+    image
+  }
+
+  private def pickColor(value: Double): Color = {
+    val shift = 0.5
+    val scalingFactor = 6.0 * 8
+    val scaledValue = (value - shift) * scalingFactor
+
+    val sigmoidValue = 1 / (1 + Math.exp(-1 * scaledValue))
+
+    val hue = 145.44
+    val brightness = 0.8
+    val saturation = sigmoidValue
+
+    Color.hsb(hue, saturation, brightness)
   }
 }
 
 object Students {
-  val N_ROWS = 25
-  val N_COLUMNS = 25
+  val N_ROWS = 10//25
+  val N_COLUMNS = 10//25
 
   val N_STUDENTS: Int = N_ROWS * N_COLUMNS
 
