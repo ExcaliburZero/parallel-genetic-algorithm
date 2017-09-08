@@ -75,12 +75,14 @@ case class Chromosome(seating: Array[Int]) {
 }
 
 object Population {
-  val CHROM_ROWS: Int = 10
+  val CHROM_ROWS: Int = 5//10
   val CHROM_COLUMNS: Int = 15
 
   val NUM_CHROMOSOMES: Int = CHROM_ROWS * CHROM_COLUMNS
   val NUM_REMOVE: Int = NUM_CHROMOSOMES / 2
   val NUM_KEEP: Int = NUM_CHROMOSOMES - NUM_REMOVE
+
+  val SAMPLE_SIZE: Int = (NUM_CHROMOSOMES / 10.0).toInt
 
   def createPopulation(students: Students): Population = {
     val chromosomes = (for (_ <- 0 until NUM_CHROMOSOMES) yield Chromosome.createRandom()).toArray
@@ -105,11 +107,25 @@ case class Population(students: Students, chromosomes: Array[Chromosome]) {
     }
 
     for (i <- Population.NUM_KEEP until Population.NUM_CHROMOSOMES) {
-      val parents = scala.util.Random.shuffle((0 until Population.NUM_KEEP).toList).toIterable
+      val parents = scala.util.Random.shuffle((0 until Population.NUM_KEEP).toList)
         .take(2).toArray
       val c = chromosomes(parents(0)).mate(chromosomes(parents(1)))
 
       newChromosomes.update(i, c)
+    }
+
+    new Population(students, newChromosomes)
+  }
+
+  def getSample(): Array[Chromosome] = {
+    this.chromosomes.take(Population.SAMPLE_SIZE)
+  }
+
+  def receiveSample(sample: Array[Chromosome]): Population = {
+    val newChromosomes = for (c <- this.chromosomes) yield c.clone().asInstanceOf[Chromosome]
+
+    for (i <- sample.indices) {
+      newChromosomes.update(i, sample(i))
     }
 
     new Population(students, newChromosomes)
@@ -133,10 +149,12 @@ case class Population(students: Students, chromosomes: Array[Chromosome]) {
     val image = new WritableImage(width, height)
     val pw = image.getPixelWriter
 
+    val shuffledChromosomes = scala.util.Random.shuffle(chromosomes.toIterable).toArray
+
     for (x <- 0 until Population.CHROM_COLUMNS; y <- 0 until Population.CHROM_ROWS) {
       val index = y * Population.CHROM_COLUMNS + x
 
-      val c = chromosomes(index)
+      val c = shuffledChromosomes(index)
       val score = students.getScore(c)
 
       val color = pickColor(score)

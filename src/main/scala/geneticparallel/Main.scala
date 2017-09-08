@@ -1,25 +1,32 @@
 package geneticparallel
 
-import scalafx.application.{JFXApp, Platform}
-import javafx.concurrent.Task
+import scalafx.application.JFXApp
+import scalafx.geometry.Insets
 import scalafx.scene.Scene
-import scalafx.scene.image.{Image, ImageView}
+import scalafx.scene.image.ImageView
+import scalafx.scene.layout.GridPane
 import scalafx.scene.paint.Color._
 
 object Main extends JFXApp {
-  var imageView: ImageView = _
+  val N_THREADS: Int = 2
+
+  var imageViews: Array[ImageView] = _
   var mainScene: Scene = _
 
   def createStage(): JFXApp.PrimaryStage = {
-    this.imageView = new ImageView() {
-      x = 25
-      y = 40
-      smooth = false
+    this.imageViews = (for (_ <- 0 until N_THREADS) yield new ImageView() {smooth = false}).toArray
+
+    val imageGrid = new GridPane {
+      hgap = 40
+      vgap = 20
+      padding = Insets(18)
     }
+
+    for (i <- imageViews.indices) yield imageGrid.add(this.imageViews(i), 0, i)
 
     this.mainScene = new Scene {
       fill = LightGreen
-      content = imageView
+      content = imageGrid
     }
 
     new JFXApp.PrimaryStage {
@@ -30,40 +37,8 @@ object Main extends JFXApp {
     }
   }
 
-  def visualizePopulation(population: Population): Unit = {
-    val scalingFactor = 100
-    val image = population.getImage(scalingFactor)
-
-    Platform.runLater(new Runnable() {
-      override def run(): Unit = {
-        imageView.setImage(image)
-      }
-    })
-  }
-
-  def runGeneticAlgorithm(imageView: ImageView): Unit = {
-    val students = Students.createStudents()
-    var population = Population.createPopulation(students)
-
-    val n_generations = 500
-
-    for (i <- 50 until n_generations) {
-      val (mean, stddev) = population.getScoreStats()
-      println(i + ": " + mean + "\tstd: " + stddev)
-      visualizePopulation(population)
-
-      population = population.generation()
-    }
-  }
-
   stage = createStage()
 
-  val task: Task[Unit] = new Task[Unit]() {
-    override def call(): Unit = {
-      runGeneticAlgorithm(imageView)
-    }
-  }
-  val th: Thread = new Thread(task)
-  th.setDaemon(true)
-  th.start()
+  val coordinator = new Coordinator(this.imageViews)
+  coordinator.start()
 }
