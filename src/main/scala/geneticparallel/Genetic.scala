@@ -12,23 +12,23 @@ object Chromosome {
 
   def createRandom(): Chromosome = {
     val indexes = (0 until Students.N_STUDENTS).toList
-    val array = scala.util.Random.shuffle(indexes).toArray
+    val list = scala.util.Random.shuffle(indexes)
 
-    new Chromosome(array)
+    new Chromosome(list)
   }
 }
 
-case class Chromosome(seating: Array[Int]) {
+case class Chromosome(seating: List[Int]) {
   def getStudentIndex(x: Int, y: Int): Int = {
     val index = y * Students.N_COLUMNS + x
     seating(index)
   }
 
   def mate(other: Chromosome): Chromosome = {
-    val changeIndices = scala.util.Random.shuffle((0 until Students.N_STUDENTS).toList).toIterable
+    val changeIndices = scala.util.Random.shuffle((0 until Students.N_STUDENTS).toList)
       .take(Chromosome.NUM_SWAP)
 
-    val newArray = this.seating.clone()
+    val newArray = this.seating.toArray
     val swapped = ArrayBuffer[Int]()
     for (i <- changeIndices) {
       if (!swapped.contains(i)) {
@@ -49,7 +49,7 @@ case class Chromosome(seating: Array[Int]) {
       mutate(newArray)
     }
 
-    new Chromosome(newArray)
+    new Chromosome(newArray.toList)
   }
 
   private def mutate(newArray: Array[Int]): Unit = {
@@ -68,10 +68,6 @@ case class Chromosome(seating: Array[Int]) {
       newArray.update(other_i, prev_v)
     }
   }
-
-  override def clone(): AnyRef = {
-    new Chromosome(seating.clone())
-  }
 }
 
 object Population {
@@ -85,25 +81,23 @@ object Population {
   val SAMPLE_SIZE: Int = (NUM_CHROMOSOMES / 10.0).toInt
 
   def createPopulation(students: Students): Population = {
-    val chromosomes = (for (_ <- 0 until NUM_CHROMOSOMES) yield Chromosome.createRandom()).toArray
+    val chromosomes = (for (_ <- 0 until NUM_CHROMOSOMES) yield Chromosome.createRandom()).toList
 
     new Population(students, chromosomes)
   }
 }
 
-case class Population(students: Students, chromosomes: Array[Chromosome]) {
+case class Population(students: Students, chromosomes: List[Chromosome]) {
   def generation(): Population = {
     val scores = for (c <- this.chromosomes) yield students.getScore(c)
     val keepIndices = chromosomes.indices.sortBy(scores).reverse.take(Population.NUM_KEEP)
-
-    val copyChromosomes = for (c <- this.chromosomes) yield c.clone().asInstanceOf[Chromosome]
 
     val newChromosomes = Array.fill[Chromosome](Population.NUM_CHROMOSOMES)(null)
 
     for (i <- keepIndices.indices) {
       val newI = keepIndices(i)
 
-      newChromosomes.update(i, copyChromosomes(newI))
+      newChromosomes.update(i, this.chromosomes(newI))
     }
 
     for (i <- Population.NUM_KEEP until Population.NUM_CHROMOSOMES) {
@@ -114,21 +108,21 @@ case class Population(students: Students, chromosomes: Array[Chromosome]) {
       newChromosomes.update(i, c)
     }
 
-    new Population(students, newChromosomes)
+    new Population(students, newChromosomes.toList)
   }
 
-  def getSample(): Array[Chromosome] = {
+  def getSample(): List[Chromosome] = {
     this.chromosomes.take(Population.SAMPLE_SIZE)
   }
 
-  def receiveSample(sample: Array[Chromosome]): Population = {
-    val newChromosomes = for (c <- this.chromosomes) yield c.clone().asInstanceOf[Chromosome]
+  def receiveSample(sample: List[Chromosome]): Population = {
+    val newChromosomes = this.chromosomes.toArray
 
     for (i <- sample.indices) {
       newChromosomes.update(i, sample(i))
     }
 
-    new Population(students, newChromosomes)
+    new Population(students, newChromosomes.toList)
   }
 
   def getScoreStats(): (Double, Double) = {

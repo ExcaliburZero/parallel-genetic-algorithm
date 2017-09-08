@@ -7,7 +7,7 @@ import scalafx.application.Platform
 import scalafx.scene.image.ImageView
 
 object Coordinator {
-  type Sister = Exchanger[Array[Chromosome]]
+  type Sister = Exchanger[List[Chromosome]]
   type Parent = Exchanger[Population]
 
   val SWAP_GEN_NUMBER = 25
@@ -25,8 +25,7 @@ class Coordinator(imageViews: Array[ImageView]) {
     })
   }
 
-  def runGeneticAlgorithm(sister: Coordinator.Sister, parent: Coordinator.Parent, imageView: ImageView): Unit = {
-    val students = Students.createStudents()
+  def runGeneticAlgorithm(students: Students, sister: Coordinator.Sister, parent: Coordinator.Parent, imageView: ImageView): Unit = {
     var population = Population.createPopulation(students)
 
     val n_generations = 500
@@ -52,13 +51,15 @@ class Coordinator(imageViews: Array[ImageView]) {
   }
 
   def start(): Unit = {
-    val exchangers = for (_ <- 0 until this.imageViews.length / 2) yield new Exchanger[Array[Chromosome]]()
-    val parentConnections = for (_ <- this.imageViews.indices) yield new Exchanger[Population]()
+    val exchangers = for (_ <- 0 until this.imageViews.length / 2) yield new Coordinator.Sister()
+    val parentConnections = for (_ <- this.imageViews.indices) yield new Coordinator.Parent()
 
-    def create_thread(sister: Coordinator.Sister, parent: Coordinator.Parent, iv: ImageView): Thread = {
+    val students = Students.createStudents()
+
+    def create_thread(students: Students, sister: Coordinator.Sister, parent: Coordinator.Parent, iv: ImageView): Thread = {
       val task: Task[Unit] = new Task[Unit]() {
         override def call(): Unit = {
-          runGeneticAlgorithm(sister, parent, iv)
+          runGeneticAlgorithm(students, sister, parent, iv)
         }
       }
       val th = new Thread(task)
@@ -69,7 +70,7 @@ class Coordinator(imageViews: Array[ImageView]) {
 
     val threads = (
       for (i <- this.imageViews.indices)
-        yield create_thread(exchangers(i / 2), parentConnections(i), this.imageViews(i))
+        yield create_thread(students, exchangers(i / 2), parentConnections(i), this.imageViews(i))
       ).toArray
 
     for (th <- threads) {
