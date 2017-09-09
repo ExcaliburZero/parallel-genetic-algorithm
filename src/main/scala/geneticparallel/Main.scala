@@ -8,7 +8,17 @@ import scalafx.scene.layout.GridPane
 import scalafx.scene.paint.Color._
 
 object Main extends JFXApp {
-  val N_THREADS: Int = 2
+  val MAX_ROW_CELLS: Int = 8
+
+  val N_THREADS: Int = 32
+  val N_H_SETS: Int = Math.ceil(N_THREADS / MAX_ROW_CELLS.toDouble).toInt
+  val N_V_SETS: Int = if (N_THREADS < MAX_ROW_CELLS) N_THREADS else MAX_ROW_CELLS
+
+  val H_GAP: Int = 10
+  val V_GAP: Int = 10
+
+  val WIDTH: Int = 1550 - H_GAP * N_H_SETS
+  val HEIGHT: Int = 1450 - V_GAP * N_V_SETS
 
   var imageViews: Array[ImageView] = _
   var mainScene: Scene = _
@@ -17,12 +27,12 @@ object Main extends JFXApp {
     this.imageViews = (for (_ <- 0 until N_THREADS) yield new ImageView() {smooth = false}).toArray
 
     val imageGrid = new GridPane {
-      hgap = 40
-      vgap = 20
+      hgap = H_GAP
+      vgap = V_GAP
       padding = Insets(18)
     }
 
-    for (i <- imageViews.indices) yield imageGrid.add(this.imageViews(i), 0, i)
+    for (i <- imageViews.indices) yield imageGrid.add(this.imageViews(i), i / MAX_ROW_CELLS, i % MAX_ROW_CELLS)
 
     this.mainScene = new Scene {
       fill = LightGreen

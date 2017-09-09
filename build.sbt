@@ -4,7 +4,7 @@ version := "1.0"
 
 //scalaVersion := "2.12.1"
 scalaVersion := "2.11.8"
-//sbtVersion := "0.13.13"
+sbtVersion := "0.13.13"
 
 // https://groups.google.com/forum/#!topic/scalafx-users/MzHb19SISHQ
 unmanagedJars in Compile += Attributed.blank(file(System.getenv("JAVA_HOME") + "/jre/lib/ext/jfxrt.jar"))

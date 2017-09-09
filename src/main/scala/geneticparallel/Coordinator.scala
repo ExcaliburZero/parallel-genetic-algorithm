@@ -10,13 +10,15 @@ object Coordinator {
   type Sister = Exchanger[List[Chromosome]]
   type Parent = Exchanger[Population]
 
-  val SWAP_GEN_NUMBER = 25
+  val SWAP_GEN_NUMBER: Int = 25
+  val N_GENERATIONS: Int = 500
+
+  val SCALING_FACTOR: Int = 30 / 2
 }
 
 class Coordinator(imageViews: Array[ImageView]) {
   def visualizePopulation(imageView: ImageView, population: Population): Unit = {
-    val scalingFactor = 100
-    val image = population.getImage(scalingFactor)
+    val image = population.getImage(Coordinator.SCALING_FACTOR)
 
     Platform.runLater(new Runnable() {
       override def run(): Unit = {
@@ -28,9 +30,7 @@ class Coordinator(imageViews: Array[ImageView]) {
   def runGeneticAlgorithm(students: Students, sister: Coordinator.Sister, parent: Coordinator.Parent, imageView: ImageView): Unit = {
     var population = Population.createPopulation(students)
 
-    val n_generations = 500
-
-    for (i <- 50 until n_generations) {
+    for (i <- 50 until Coordinator.N_GENERATIONS) {
       val (mean, stddev) = population.getScoreStats()
       println(i + ": " + mean + "\tstd: " + stddev)
       visualizePopulation(imageView, population)

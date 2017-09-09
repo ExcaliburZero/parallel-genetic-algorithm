@@ -71,8 +71,8 @@ case class Chromosome(seating: List[Int]) {
 }
 
 object Population {
-  val CHROM_ROWS: Int = 5//10
-  val CHROM_COLUMNS: Int = 15
+  val CHROM_ROWS: Int = Main.HEIGHT / Main.N_V_SETS / Coordinator.SCALING_FACTOR
+  val CHROM_COLUMNS: Int = Main.WIDTH / Main.N_H_SETS / Coordinator.SCALING_FACTOR
 
   val NUM_CHROMOSOMES: Int = CHROM_ROWS * CHROM_COLUMNS
   val NUM_REMOVE: Int = NUM_CHROMOSOMES / 2
@@ -179,8 +179,8 @@ case class Population(students: Students, chromosomes: List[Chromosome]) {
 }
 
 object Students {
-  val N_ROWS = 10//25
-  val N_COLUMNS = 10//25
+  val N_ROWS = 10
+  val N_COLUMNS = 10
 
   val N_STUDENTS: Int = N_ROWS * N_COLUMNS
 
