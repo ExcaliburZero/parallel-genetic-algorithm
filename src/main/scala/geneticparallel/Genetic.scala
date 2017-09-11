@@ -18,12 +18,34 @@ object Chromosome {
   }
 }
 
-case class Chromosome(seating: List[Int]) {
+/**
+  * A Chromosome is a representation of a possible solution to the problem.
+  *
+  * For this problem, each chromosome is a list of the students that are in
+  * each seat in the classroom.
+  */
+case class Chromosome(private val seating: List[Int]) {
+  /**
+    * Returns the id of the student that is located in the given seat.
+    *
+    * @param x The column of the seat.
+    * @param y The row of the seat.
+    * @return The id of the student in the seat.
+    */
   def getStudentIndex(x: Int, y: Int): Int = {
     val index = y * Students.N_COLUMNS + x
     seating(index)
   }
 
+  /**
+    * Creates a new child chromosome based on this chromosome and the given
+    * chromosome.
+    *
+    * Parts of the child chromosome also have a chance of being mutated.
+    *
+    * @param other The other parent chromosome.
+    * @return The newly born child chromosome.
+    */
   def mate(other: Chromosome): Chromosome = {
     val changeIndices = scala.util.Random.shuffle((0 until Students.N_STUDENTS).toList)
       .take(Chromosome.NUM_SWAP)
@@ -52,6 +74,15 @@ case class Chromosome(seating: List[Int]) {
     new Chromosome(newArray.toList)
   }
 
+  /**
+    * Mutates the given chromosome by swapping a random number of the students'
+    * seating positions.
+    *
+    * Note that this method works by actually mutating the contents of the
+    * passed in array.
+    *
+    * @param newArray The array representing the chromosome.
+    */
   private def mutate(newArray: Array[Int]): Unit = {
     val num_mutations = (scala.util.Random.nextGaussian() * Chromosome.AVG_NUM_MUTATIONS).toInt
 
