@@ -4,12 +4,34 @@ import scala.collection.mutable.ArrayBuffer
 import scalafx.scene.image.{Image, WritableImage}
 import scalafx.scene.paint.Color
 
+/**
+  * Chromosome is an object that contains constants and type definitions used
+  * by the Chromosome class.
+  */
 object Chromosome {
+  /**
+    * The number of chromosomes to exchange between simulation threads at each
+    * swap.
+    */
   val NUM_SWAP: Int = Students.N_STUDENTS / 3
 
+  /**
+    * The 1/n chance that a given chromosome will be mutated.
+    */
   val MUTATION_CHANCE: Int = 10
+
+  /**
+    * The average number of mutations that a mutated chromosome will undergo.
+    */
   val AVG_NUM_MUTATIONS: Double = Students.N_STUDENTS / 10.0
 
+  /**
+    * Creates a randomized chromosome.
+    *
+    * This is used when creating the initial chromosomes for a simulation.
+    *
+    * @return A randomly generated chromosome.
+    */
   def createRandom(): Chromosome = {
     val indexes = (0 until Students.N_STUDENTS).toList
     val list = scala.util.Random.shuffle(indexes)
@@ -101,16 +123,48 @@ case class Chromosome(private val seating: List[Int]) {
   }
 }
 
+/**
+  * Population is an object that contains constants and type definitions used
+  * by the Population class.
+  */
 object Population {
+  /**
+    * The number of chromosomes per row.
+    */
   val CHROM_ROWS: Int = Main.HEIGHT / Main.N_V_SETS / Coordinator.SCALING_FACTOR
+
+  /**
+    * The number of chromosomes per column.
+    */
   val CHROM_COLUMNS: Int = Main.WIDTH / Main.N_H_SETS / Coordinator.SCALING_FACTOR
 
+  /**
+    * The number of chromosomes in a population.
+    */
   val NUM_CHROMOSOMES: Int = CHROM_ROWS * CHROM_COLUMNS
+
+  /**
+    * The number of chromosomes to remove each generation.
+    */
   val NUM_REMOVE: Int = NUM_CHROMOSOMES / 2
+
+  /**
+    * The number of chromosomes to keep each generation.
+    */
   val NUM_KEEP: Int = NUM_CHROMOSOMES - NUM_REMOVE
 
+  /**
+    * The number of chromosomes to pass in a swap.
+    */
   val SAMPLE_SIZE: Int = (NUM_CHROMOSOMES / 10.0).toInt
 
+  /**
+    * Creates a randomized population of chromosomes.
+    *
+    * This is used when creating the initial populaion for a simulation.
+    *
+    * @return A randomly generated population.
+    */
   def createPopulation(students: Students): Population = {
     val chromosomes = (for (_ <- 0 until NUM_CHROMOSOMES) yield Chromosome.createRandom()).toList
 
