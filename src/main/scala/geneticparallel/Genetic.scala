@@ -172,7 +172,17 @@ object Population {
   }
 }
 
+/**
+  * A Population is a set of solutions and the definition of a student seating
+  * problem.
+  */
 case class Population(students: Students, chromosomes: List[Chromosome]) {
+  /**
+    * Runs a generation over the population, removing low scoring chromosomes,
+    * and mating the remaining chromosomes to refill the population.
+    *
+    * @return The Population representing the next generation.
+    */
   def generation(): Population = {
     val scores = for (c <- this.chromosomes) yield students.getScore(c)
     val keepIndices = chromosomes.indices.sortBy(scores).reverse.take(Population.NUM_KEEP)
@@ -196,10 +206,22 @@ case class Population(students: Students, chromosomes: List[Chromosome]) {
     new Population(students, newChromosomes.toList)
   }
 
+  /**
+    * Returns a sample of the best chromosomes to send in a chromosome swap.
+    *
+    * @return The sample of chromosomes.
+    */
   def getSample(): List[Chromosome] = {
     this.chromosomes.take(Population.SAMPLE_SIZE)
   }
 
+  /**
+    * Creates a new population with the given set of swapped chromosomes
+    * transplanted into the current population.
+    *
+    * @param sample The sample of chromosomes to transplant.
+    * @return The population with the new sample.
+    */
   def receiveSample(sample: List[Chromosome]): Population = {
     val newChromosomes = this.chromosomes.toArray
 
@@ -210,6 +232,11 @@ case class Population(students: Students, chromosomes: List[Chromosome]) {
     new Population(students, newChromosomes.toList)
   }
 
+  /**
+    * Returns the mean and standard deviation of the chromosome scores.
+    *
+    * @return The mean and standard deviation of the chromosome scores.
+    */
   def getScoreStats(): (Double, Double) = {
     val scores = for (c <- chromosomes) yield students.getScore(c)
     val count = scores.length
@@ -221,6 +248,14 @@ case class Population(students: Students, chromosomes: List[Chromosome]) {
     (mean, stddev)
   }
 
+  /**
+    * Returns an image representing the Population's chromosomes' scores,
+    * scaled using the given scaling factor.
+    *
+    * @param scalingFactor The pixel width and height for each chromosome
+    * display.
+    * @return The generated image.
+    */
   def getImage(scalingFactor: Int): Image = {
     val height = Population.CHROM_ROWS * scalingFactor
     val width = Population.CHROM_COLUMNS * scalingFactor
@@ -248,6 +283,14 @@ case class Population(students: Students, chromosomes: List[Chromosome]) {
     image
   }
 
+  /**
+    * Returns a color to represent the given value.
+    *
+    * The given value should be between 0.0 and 1.0.
+    *
+    * @param value The value to get the color for.
+    * @return The color to represent the given value.
+    */
   private def pickColor(value: Double): Color = {
     val shift = 0.5
     val scalingFactor = 6.0 * 8
@@ -263,19 +306,47 @@ case class Population(students: Students, chromosomes: List[Chromosome]) {
   }
 }
 
+/**
+  * Students is an object that contains constants and type definitions used
+  * by the Students class.
+  */
 object Students {
+  /**
+    * The number of rows of students.
+    */
   val N_ROWS = 10
+
+  /**
+    * The number of columns of students.
+    */
   val N_COLUMNS = 10
 
+  /**
+    * The total number of students in a classroom.
+    */
   val N_STUDENTS: Int = N_ROWS * N_COLUMNS
 
+  /**
+    * The highest like score that a student can have towards another student.
+    */
   val MAX_LIKE: Int = 10
+
+  /**
+    * The maximum raw score that a chromosome can have.
+    */
   val MAX_SCORE: Double = MAX_LIKE * (
     (4 * 2) +
       (((N_COLUMNS + N_ROWS) * 2 - 4) * 3) +
       (N_COLUMNS - 2) * (N_ROWS - 2) * 4
     )
 
+  /**
+    * Creates a randomized set of student preferences.
+    *
+    * This is used when creating the student preferences for a simulation.
+    *
+    * @return A randomly generated set of student preferences.
+    */
   def createStudents(): Students = {
     val preferences = for (s1 <- 0 until N_STUDENTS) yield
       (for (s2 <- 0 until N_STUDENTS) yield scala.util.Random.nextDouble() * MAX_LIKE).toArray
@@ -284,7 +355,23 @@ object Students {
   }
 }
 
+/**
+  * A Students object represents the definition of a student seating problem.
+  *
+  * It defines the preferences of all of the students toward each other.
+  *
+  * The preferences are defined by an array of each of the students, each of
+  * which contains an array with entries corresponding to each of the students
+  * containg the student's preference value towards the other student.
+  */
 case class Students(preferences: Array[Array[Double]]) {
+  /**
+    * Calculates a normalized [0.0, 1.0] score for the given Chromosome
+    * solution to the seating problem.
+    *
+    * @param chromosome The chromosome to score.
+    * @return The normalized score of the chromosome.
+    */
   def getScore(chromosome: Chromosome): Double = {
     def getStudentScore(x: Int, y: Int): Double = {
       val student = chromosome.getStudentIndex(x, y)
@@ -300,11 +387,28 @@ case class Students(preferences: Array[Array[Double]]) {
     scores.sum / Students.MAX_SCORE
   }
 
-  private def getPreference(x: Int, y: Int, i: Int): Double = {
-    val index = y * Students.N_COLUMNS + x
-    preferences(index)(i)
+  /**
+    * Returns the preference of the given student to the student at the given
+    * seating position.
+    *
+    * @param x The column of the seat.
+    * @param y The row of the seat.
+    * @param studentIndex The index of the student to get the preference of.
+    * @return The preference value.
+    */
+  private def getPreference(x: Int, y: Int, studentIndex: Int): Double = {
+    val other = y * Students.N_COLUMNS + x
+    preferences(studentIndex)(other)
   }
 
+  /**
+    * Returns the positions of all of the possible seats neighboring the given
+    * seating position.
+    *
+    * @param x The column of the seat.
+    * @param y The row of the seat.
+    * @return The columns and rows of the possible neighboring seats.
+    */
   private def getNeighborsIndexes(x: Int, y: Int): Array[(Int, Int)] = {
     val possibleNeighbors = List[(Int, Int)](
       (x + 1, y),
