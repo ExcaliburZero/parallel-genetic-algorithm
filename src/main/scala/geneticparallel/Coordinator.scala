@@ -4,6 +4,7 @@ import java.util.concurrent.Exchanger
 import javafx.concurrent.Task
 
 import scalafx.application.Platform
+import scalafx.scene.control.Label
 import scalafx.scene.image.ImageView
 
 /**
@@ -16,7 +17,7 @@ object Coordinator {
     * sibling task threads.
     */
   type Sibling = Exchanger[List[Chromosome]]
-  type Parent = Exchanger[Population]
+  type Parent = Exchanger[Chromosome]
 
   /**
     * The number of generations in between each sibling chromosome swap.
@@ -27,7 +28,7 @@ object Coordinator {
     * The number of generations that each task thread will run the genetic
     * algorithm for.
     */
-  val N_GENERATIONS: Int = 500
+  val N_GENERATIONS: Int = 100
 
   /**
     * The size of a chromosome square in the visualization.
@@ -42,7 +43,7 @@ object Coordinator {
   * Each task thread has a sibling that they swap some of their solutions with
   * every few generations.
   */
-class Coordinator(imageViews: Array[ImageView]) {
+class Coordinator(imageViews: Array[ImageView], resultsLabel: Label) {
   /**
     * Visualizes the given chromosome population in the given ImageView pane.
     *
@@ -55,6 +56,19 @@ class Coordinator(imageViews: Array[ImageView]) {
     Platform.runLater(new Runnable() {
       override def run(): Unit = {
         imageView.setImage(image)
+      }
+    })
+  }
+
+  /**
+    * Displays the given top chromosome score in the GUI.
+    *
+    * @param bestScore The score to display.
+    */
+  private def displayTopScore(bestScore: Double): Unit = {
+    Platform.runLater(new Runnable() {
+      override def run(): Unit = {
+        resultsLabel.setText("Best: %.3f".format(bestScore))
       }
     })
   }
@@ -92,6 +106,40 @@ class Coordinator(imageViews: Array[ImageView]) {
         println("SWAP")
       }
     }
+
+    val chromosomeScores = for (c <- population.chromosomes) yield students.getScore(c)
+    val bestChromosome = population.chromosomes(
+      chromosomeScores.indices.maxBy(chromosomeScores)
+    )
+
+    parent.exchange(bestChromosome)
+  }
+
+  /**
+    * Creates a thread to monitor the child threads and display the score of
+    * the best chromosome after all the child threads have finished running.
+    *
+    * @param students The student preferences that define the problem.
+    * @param children The exchangers for each of the child threads' best
+    * chromosomes.
+    * @return The parent, results monioring thread.
+    */
+  private def monitorResults(students: Students, children: List[Coordinator.Parent]): Thread = {
+    val task: Task[Unit] = new Task[Unit]() {
+      override def call(): Unit = {
+        val bestChromosomes = for (child <- children) yield child.exchange(null)
+
+        val chromosomeScores = for (c <- bestChromosomes) yield students.getScore(c)
+
+        val bestScore = chromosomeScores.max
+
+        displayTopScore(bestScore)
+      }
+    }
+    val th = new Thread(task)
+    th.setDaemon(true)
+
+    th
   }
 
   /**
@@ -123,5 +171,8 @@ class Coordinator(imageViews: Array[ImageView]) {
     for (th <- threads) {
       th.start()
     }
+
+    val parent = monitorResults(students, parentConnections.toList)
+    parent.start()
   }
 }

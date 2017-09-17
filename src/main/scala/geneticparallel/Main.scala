@@ -3,8 +3,10 @@ package geneticparallel
 import scalafx.application.JFXApp
 import scalafx.geometry.Insets
 import scalafx.scene.Scene
+import scalafx.scene.control.Label
 import scalafx.scene.image.ImageView
 import scalafx.scene.layout.GridPane
+import scalafx.scene.text.Font
 import scalafx.scene.paint.Color._
 
 /**
@@ -52,7 +54,13 @@ object Main extends JFXApp {
     */
   val HEIGHT: Int = 1450 - V_GAP * N_V_SETS
 
+  /**
+    * The font size to use for the results display box.
+    */
+  val FONT_SIZE: Int = 36
+
   var imageViews: Array[ImageView] = _
+  var resultsLabel: Label = _
   var mainScene: Scene = _
 
   /**
@@ -71,6 +79,10 @@ object Main extends JFXApp {
 
     for (i <- imageViews.indices) yield imageGrid.add(this.imageViews(i), i / MAX_ROW_CELLS, i % MAX_ROW_CELLS)
 
+    resultsLabel = new Label("Calculating ...")
+    resultsLabel.setFont(new Font(FONT_SIZE))
+    imageGrid.add(resultsLabel, 0, N_V_SETS)
+
     this.mainScene = new Scene {
       fill = LightGreen
       content = imageGrid
@@ -86,6 +98,6 @@ object Main extends JFXApp {
 
   stage = createStage()
 
-  val coordinator = new Coordinator(this.imageViews)
+  val coordinator = new Coordinator(this.imageViews, this.resultsLabel)
   coordinator.start()
 }
