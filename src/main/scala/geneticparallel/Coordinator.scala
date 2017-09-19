@@ -12,15 +12,11 @@ import scalafx.scene.image.ImageView
   * by the Coordinator class.
   */
 object Coordinator {
-  /**
-    * A Sibling is an Exchanger for exchanging a set of chromosomes between two
-    * sibling task threads.
-    */
-  type Sibling = Exchanger[List[Chromosome]]
+  type Swapper = Exchanger[List[Chromosome]]
   type Parent = Exchanger[Chromosome]
 
   /**
-    * The number of generations in between each sibling chromosome swap.
+    * The number of generations in between each chromosome swap.
     */
   val SWAP_GEN_NUMBER: Int = 25
 
@@ -40,8 +36,8 @@ object Coordinator {
   * A Coordinator is an object that manages a set of task threads that run a
   * genetic algorithm and pass solutions between each other.
   *
-  * Each task thread has a sibling that they swap some of their solutions with
-  * every few generations.
+  * Each task thread swaps some of their solutions with another thread every
+  * few generations.
   */
 class Coordinator(imageViews: Array[ImageView], resultsLabel: Label) {
   /**
@@ -75,29 +71,29 @@ class Coordinator(imageViews: Array[ImageView], resultsLabel: Label) {
 
   /**
     * Runs a genetic algorithm for a given number of generations, swapping some
-    * chromosomes with the current task thread's sibling every few generations.
+    * chromosomes with another task thread every few generations.
     *
     * Also visualizes the population at the end of each generation in the given
     * ImageView pane.
     *
     * @param students The student seating preferences that define the problem.
-    * @param sibling The exchanger for the sibling task thread.
+    * @param swapper The exchanger for swaping chromosomes.
     * @param parent The exchanger for the parent task thread.
     * @param imageView The ImageView pane to visualize the population in.
     */
-  private def runGeneticAlgorithm(students: Students, sibling: Coordinator.Sibling, parent: Coordinator.Parent, imageView: ImageView): Unit = {
+  private def runGeneticAlgorithm(students: Students, swapper: Coordinator.Swapper, parent: Coordinator.Parent, imageView: ImageView): Unit = {
     var population = Population.createPopulation(students)
 
     for (i <- 0 until Coordinator.N_GENERATIONS) {
       val (mean, stddev) = population.getScoreStats()
-      println(i + ": " + mean + "\tstd: " + stddev)
+      println(i + ": %.3f\tstd: %.3f".format(mean, stddev))
       visualizePopulation(imageView, population)
 
       population = population.generation()
 
       if (i % Coordinator.SWAP_GEN_NUMBER == 0) {
         val sample = population.getSample()
-        val newSample = sibling.exchange(sample)
+        val newSample = swapper.exchange(sample)
 
         println("Sent: " + new Population(students, sample).getScoreStats()._1)
         println("Recieved: " + new Population(students, newSample).getScoreStats()._1)
@@ -143,18 +139,20 @@ class Coordinator(imageViews: Array[ImageView], resultsLabel: Label) {
   }
 
   /**
-    * Starts the genetic algorithm task threads.
+    * Creates the child threads to run the genetic algorithm instances.
+    *
+    * @param students The student preferences that define the problem.
+    * @param parentConnections The exchangers for child threads and the parent
+    * thread.
+    * @return The child threads.
     */
-  def start(): Unit = {
-    val exchangers = for (_ <- 0 until this.imageViews.length / 2) yield new Coordinator.Sibling()
-    val parentConnections = for (_ <- this.imageViews.indices) yield new Coordinator.Parent()
+  private def createChildThreads(students: Students, parentConnections: List[Coordinator.Parent]): IndexedSeq[Thread] = {
+    val exchanger = new Coordinator.Swapper
 
-    val students = Students.createStudents()
-
-    def create_thread(students: Students, sibling: Coordinator.Sibling, parent: Coordinator.Parent, iv: ImageView): Thread = {
+    def create_thread(students: Students, swapper: Coordinator.Swapper, parent: Coordinator.Parent, iv: ImageView): Thread = {
       val task: Task[Unit] = new Task[Unit]() {
         override def call(): Unit = {
-          runGeneticAlgorithm(students, sibling, parent, iv)
+          runGeneticAlgorithm(students, swapper, parent, iv)
         }
       }
       val th = new Thread(task)
@@ -163,16 +161,22 @@ class Coordinator(imageViews: Array[ImageView], resultsLabel: Label) {
       th
     }
 
-    val threads = (
-      for (i <- this.imageViews.indices)
-        yield create_thread(students, exchangers(i / 2), parentConnections(i), this.imageViews(i))
-      ).toArray
+    for (i <- this.imageViews.indices)
+        yield create_thread(students, exchanger, parentConnections(i), this.imageViews(i))
+  }
 
-    for (th <- threads) {
-      th.start()
-    }
+  /**
+    * Starts the genetic algorithm task threads.
+    */
+  def start(): Unit = {
+    val parentConnections = (for (_ <- this.imageViews.indices) yield new Coordinator.Parent()).toList
 
-    val parent = monitorResults(students, parentConnections.toList)
+    val students = Students.createStudents()
+
+    val childThreads = createChildThreads(students, parentConnections)
+    for (th <- childThreads) yield th.start()
+
+    val parent = monitorResults(students, parentConnections)
     parent.start()
   }
 }
