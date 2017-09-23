@@ -24,7 +24,7 @@ object Coordinator {
     * The number of generations that each task thread will run the genetic
     * algorithm for.
     */
-  val N_GENERATIONS: Int = 100
+  val N_GENERATIONS: Int = 500
 
   /**
     * The size of a chromosome square in the visualization.
@@ -39,7 +39,7 @@ object Coordinator {
   * Each task thread swaps some of their solutions with another thread every
   * few generations.
   */
-class Coordinator(imageViews: Array[ImageView], resultsLabel: Label) {
+class Coordinator(imageViews: Array[ImageView], chromosomeView: ImageView, resultsLabel: Label) {
   /**
     * Visualizes the given chromosome population in the given ImageView pane.
     *
@@ -61,10 +61,11 @@ class Coordinator(imageViews: Array[ImageView], resultsLabel: Label) {
     *
     * @param bestScore The score to display.
     */
-  private def displayTopScore(bestScore: Double): Unit = {
+  private def displayTopScore(students: Students, bestChromosome: Chromosome, bestScore: Double): Unit = {
     Platform.runLater(new Runnable() {
       override def run(): Unit = {
         resultsLabel.setText("Best: %.3f".format(bestScore))
+        chromosomeView.setImage(bestChromosome.getImage(students, 16))
       }
     })
   }
@@ -127,9 +128,11 @@ class Coordinator(imageViews: Array[ImageView], resultsLabel: Label) {
 
         val chromosomeScores = for (c <- bestChromosomes) yield students.getScore(c)
 
+        val best = bestChromosomes(chromosomeScores.indices.maxBy(chromosomeScores))
+
         val bestScore = chromosomeScores.max
 
-        displayTopScore(bestScore)
+        displayTopScore(students, best, bestScore)
       }
     }
     val th = new Thread(task)

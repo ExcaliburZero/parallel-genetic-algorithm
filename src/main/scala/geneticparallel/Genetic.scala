@@ -18,12 +18,12 @@ object Chromosome {
   /**
     * The 1/n chance that a given chromosome will be mutated.
     */
-  val MUTATION_CHANCE: Int = 10
+  val MUTATION_CHANCE: Int = 2
 
   /**
     * The average number of mutations that a mutated chromosome will undergo.
     */
-  val AVG_NUM_MUTATIONS: Double = Students.N_STUDENTS / 10.0
+  val AVG_NUM_MUTATIONS: Double = Students.N_STUDENTS / 4.0
 
   /**
     * Creates a randomized chromosome.
@@ -121,6 +121,28 @@ case class Chromosome(private val seating: List[Int]) {
       newArray.update(other_i, prev_v)
     }
   }
+
+  def getImage(students: Students, scalingFactor: Int): Image = {
+    val height = Students.N_ROWS * scalingFactor
+    val width = Students.N_COLUMNS * scalingFactor
+
+    val image = new WritableImage(width, height)
+    val pw = image.getPixelWriter
+
+    for (x <- 0 until Students.N_COLUMNS; y <- 0 until Students.N_ROWS) {
+      val index = getStudentIndex(x, y)
+
+      val color = students.colors(index)
+
+      for (x2 <- 0 until scalingFactor; y2 <- 0 until scalingFactor) {
+        val i1 = x * scalingFactor + x2
+        val i2 = y * scalingFactor + y2
+        pw.setColor(i1, i2, color)
+      }
+    }
+
+    image
+  }
 }
 
 /**
@@ -158,17 +180,20 @@ object Population {
     */
   val SAMPLE_SIZE: Int = (NUM_CHROMOSOMES / 10.0).toInt
 
+  val APROX_MAX_SCORE: Double = 0.19
+  val COLOR_CONST: Double = -math.log(1.0 / 9.0) / APROX_MAX_SCORE
+
   /**
     * Creates a randomized population of chromosomes.
     *
-    * This is used when creating the initial populaion for a simulation.
+    * This is used when creating the initial population for a simulation.
     *
     * @return A randomly generated population.
     */
   def createPopulation(students: Students): Population = {
-    val chromosomes = (for (_ <- 0 until NUM_CHROMOSOMES) yield Chromosome.createRandom()).toList
+    val chromosomes = (for (_ <- 0 until NUM_CHROMOSOMES) yield Chromosome.createRandom()).toArray
 
-    new Population(students, chromosomes)
+    new Population(students, chromosomes.toList)
   }
 }
 
@@ -292,11 +317,7 @@ case class Population(students: Students, chromosomes: List[Chromosome]) {
     * @return The color to represent the given value.
     */
   private def pickColor(value: Double): Color = {
-    val shift = 0.5
-    val scalingFactor = 6.0 * 8
-    val scaledValue = (value - shift) * scalingFactor
-
-    val sigmoidValue = 1 / (1 + Math.exp(-1 * scaledValue))
+    val sigmoidValue = 1.0 / (1.0 + Math.exp(-1.0 * value * Population.COLOR_CONST))
 
     val hue = 145.44
     val brightness = 0.8
@@ -348,10 +369,13 @@ object Students {
     * @return A randomly generated set of student preferences.
     */
   def createStudents(): Students = {
-    val preferences = for (s1 <- 0 until N_STUDENTS) yield
-      (for (s2 <- 0 until N_STUDENTS) yield scala.util.Random.nextDouble() * MAX_LIKE).toArray
+    val colors = for (s1 <- 0 until N_STUDENTS) yield Color.rgb(
+      scala.util.Random.nextInt(256),
+      0,
+      0
+    )
 
-    new Students(preferences.toArray)
+    new Students(colors.toArray)
   }
 }
 
@@ -360,11 +384,11 @@ object Students {
   *
   * It defines the preferences of all of the students toward each other.
   *
-  * The preferences are defined by an array of each of the students, each of
-  * which contains an array with entries corresponding to each of the students
-  * containg the student's preference value towards the other student.
+  * The preferences are defined by each student having an RGB color, such that
+  * the more simmilar the color of two students, the higher preference they
+  * have towards one another.
   */
-case class Students(preferences: Array[Array[Double]]) {
+case class Students(colors: Array[Color]) {
   /**
     * Calculates a normalized [0.0, 1.0] score for the given Chromosome
     * solution to the seating problem.
@@ -377,28 +401,30 @@ case class Students(preferences: Array[Array[Double]]) {
       val student = chromosome.getStudentIndex(x, y)
 
       val neighborIndexes = getNeighborsIndexes(x, y)
-      val neighborPreferences = for ((x, y) <- neighborIndexes) yield getPreference(x, y, student)
+      val neighborPreferences = for ((a, b) <- neighborIndexes) yield getPreference(chromosome.getStudentIndex(a, b), student)
 
       neighborPreferences.sum
     }
 
     val scores = for (x <- 0 until Students.N_COLUMNS; y <- 0 until Students.N_ROWS) yield getStudentScore(x, y)
 
-    scores.sum / Students.MAX_SCORE
+    if (scores.sum > 0) 1.0 / scores.sum else 1.0
   }
 
   /**
     * Returns the preference of the given student to the student at the given
     * seating position.
     *
-    * @param x The column of the seat.
-    * @param y The row of the seat.
+    * @param otherIndex The index of the other student to get the preference of.
     * @param studentIndex The index of the student to get the preference of.
     * @return The preference value.
     */
-  private def getPreference(x: Int, y: Int, studentIndex: Int): Double = {
-    val other = y * Students.N_COLUMNS + x
-    preferences(studentIndex)(other)
+  private def getPreference(otherIndex: Int, studentIndex: Int): Double = {
+    val otherColor = colors(otherIndex)
+    val thisColor = colors(studentIndex)
+
+    Math.pow(thisColor.red - otherColor.red, 2) + Math.pow(thisColor.green - otherColor.green, 2) +
+      Math.pow(thisColor.blue - otherColor.blue, 2)
   }
 
   /**
@@ -410,12 +436,10 @@ case class Students(preferences: Array[Array[Double]]) {
     * @return The columns and rows of the possible neighboring seats.
     */
   private def getNeighborsIndexes(x: Int, y: Int): Array[(Int, Int)] = {
-    val possibleNeighbors = List[(Int, Int)](
-      (x + 1, y),
-      (x - 1, y),
-      (x, y + 1),
-      (x, y - 1)
-    )
+    val possibleNeighbors = for (
+      xd <- List(-1, 0, 1);
+      yd <- List(-1, 0, 1)
+    ) yield (x + xd, y + yd)
 
     def isValidNeighbor(ab: (Int, Int)): Boolean = {
       ab match {

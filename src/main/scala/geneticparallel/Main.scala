@@ -16,7 +16,7 @@ object Main extends JFXApp {
   /**
     * The number of threads, and thus cells, to use.
     */
-  val N_THREADS: Int = 32
+  val N_THREADS: Int = 64//32
 
   /**
     * The max number rows of cells. After this number is exceeded, cells are
@@ -60,6 +60,7 @@ object Main extends JFXApp {
   val FONT_SIZE: Int = 36
 
   var imageViews: Array[ImageView] = _
+  var chromosomeView: ImageView = _
   var resultsLabel: Label = _
   var mainScene: Scene = _
 
@@ -71,21 +72,35 @@ object Main extends JFXApp {
   def createStage(): JFXApp.PrimaryStage = {
     this.imageViews = (for (_ <- 0 until N_THREADS) yield new ImageView() {smooth = false}).toArray
 
+    val mainGrid = new GridPane()
+
     val imageGrid = new GridPane {
       hgap = H_GAP
       vgap = V_GAP
       padding = Insets(18)
     }
 
+    val resultsGrid = new GridPane {
+      hgap = H_GAP
+      vgap = V_GAP
+      padding = Insets(18)
+    }
+
+    mainGrid.add(imageGrid, 0, 0)
+    mainGrid.add(resultsGrid, 0, 1)
+
     for (i <- imageViews.indices) yield imageGrid.add(this.imageViews(i), i / MAX_ROW_CELLS, i % MAX_ROW_CELLS)
 
     resultsLabel = new Label("Calculating ...")
     resultsLabel.setFont(new Font(FONT_SIZE))
-    imageGrid.add(resultsLabel, 0, N_V_SETS)
+    resultsGrid.add(resultsLabel, 0, 0)
+
+    chromosomeView = new ImageView() {smooth = false}
+    resultsGrid.add(chromosomeView, 1, 0)
 
     this.mainScene = new Scene {
       fill = LightGreen
-      content = imageGrid
+      content = mainGrid
     }
 
     new JFXApp.PrimaryStage {
@@ -98,6 +113,6 @@ object Main extends JFXApp {
 
   stage = createStage()
 
-  val coordinator = new Coordinator(this.imageViews, this.resultsLabel)
+  val coordinator = new Coordinator(this.imageViews, this.chromosomeView, this.resultsLabel)
   coordinator.start()
 }
