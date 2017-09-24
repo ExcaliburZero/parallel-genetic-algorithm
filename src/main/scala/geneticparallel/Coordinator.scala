@@ -1,8 +1,9 @@
 package geneticparallel
 
-import java.util.concurrent.Exchanger
+import java.util.concurrent.{Exchanger, Semaphore, TimeUnit}
 import javafx.concurrent.Task
 
+import scala.concurrent.TimeoutException
 import scalafx.application.Platform
 import scalafx.scene.control.Label
 import scalafx.scene.image.ImageView
@@ -30,6 +31,11 @@ object Coordinator {
     * The size of a chromosome square in the visualization.
     */
   val SCALING_FACTOR: Int = 15
+
+  /**
+    * The time in milliseconds to wait for a swap.
+    */
+  val SWAP_TIME_WAIT: Int = 750
 }
 
 /**
@@ -87,20 +93,25 @@ class Coordinator(imageViews: Array[ImageView], chromosomeView: ImageView, resul
 
     for (i <- 0 until Coordinator.N_GENERATIONS) {
       val (mean, stddev) = population.getScoreStats()
-      println(i + ": %.3f\tstd: %.3f".format(mean, stddev))
+      println(i + ":\t%.3f\t\tstd: %.3f".format(mean, stddev))
       visualizePopulation(imageView, population)
 
       population = population.generation()
 
       if (i % Coordinator.SWAP_GEN_NUMBER == 0) {
         val sample = population.getSample()
-        val newSample = swapper.exchange(sample)
 
-        println("Sent: " + new Population(students, sample).getScoreStats()._1)
-        println("Recieved: " + new Population(students, newSample).getScoreStats()._1)
+        val newSample = try {
+          val n = swapper.exchange(sample, Coordinator.SWAP_TIME_WAIT, TimeUnit.MILLISECONDS)
+          println("SWAP")
+          n
+        } catch {
+          case _: TimeoutException =>
+            println("SKIPPED")
+            sample
+        }
 
         population = population.receiveSample(newSample)
-        println("SWAP")
       }
     }
 
@@ -119,7 +130,7 @@ class Coordinator(imageViews: Array[ImageView], chromosomeView: ImageView, resul
     * @param students The student preferences that define the problem.
     * @param children The exchangers for each of the child threads' best
     * chromosomes.
-    * @return The parent, results monioring thread.
+    * @return The parent, results monitoring thread.
     */
   private def monitorResults(students: Students, children: List[Coordinator.Parent]): Thread = {
     val task: Task[Unit] = new Task[Unit]() {
@@ -152,7 +163,7 @@ class Coordinator(imageViews: Array[ImageView], chromosomeView: ImageView, resul
   private def createChildThreads(students: Students, parentConnections: List[Coordinator.Parent]): IndexedSeq[Thread] = {
     val exchanger = new Coordinator.Swapper
 
-    def create_thread(students: Students, swapper: Coordinator.Swapper, parent: Coordinator.Parent, iv: ImageView): Thread = {
+    def createThread(students: Students, swapper: Coordinator.Swapper, parent: Coordinator.Parent, iv: ImageView): Thread = {
       val task: Task[Unit] = new Task[Unit]() {
         override def call(): Unit = {
           runGeneticAlgorithm(students, swapper, parent, iv)
@@ -165,7 +176,7 @@ class Coordinator(imageViews: Array[ImageView], chromosomeView: ImageView, resul
     }
 
     for (i <- this.imageViews.indices)
-        yield create_thread(students, exchanger, parentConnections(i), this.imageViews(i))
+        yield createThread(students, exchanger, parentConnections(i), this.imageViews(i))
   }
 
   /**

@@ -16,7 +16,7 @@ object Main extends JFXApp {
   /**
     * The number of threads, and thus cells, to use.
     */
-  val N_THREADS: Int = 64//32
+  val N_THREADS: Int = 64
 
   /**
     * The max number rows of cells. After this number is exceeded, cells are
