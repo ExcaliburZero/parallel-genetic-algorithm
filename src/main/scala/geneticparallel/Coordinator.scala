@@ -1,6 +1,6 @@
 package geneticparallel
 
-import java.util.concurrent.{Exchanger, Semaphore, TimeUnit}
+import java.util.concurrent.{Exchanger, TimeUnit}
 import javafx.concurrent.Task
 
 import scala.concurrent.TimeoutException
@@ -83,17 +83,18 @@ class Coordinator(imageViews: Array[ImageView], chromosomeView: ImageView, resul
     * Also visualizes the population at the end of each generation in the given
     * ImageView pane.
     *
+    * @param id The id of the current thread
     * @param students The student seating preferences that define the problem.
-    * @param swapper The exchanger for swaping chromosomes.
+    * @param swapper The exchanger for swapping chromosomes.
     * @param parent The exchanger for the parent task thread.
     * @param imageView The ImageView pane to visualize the population in.
     */
-  private def runGeneticAlgorithm(students: Students, swapper: Coordinator.Swapper, parent: Coordinator.Parent, imageView: ImageView): Unit = {
+  private def runGeneticAlgorithm(id: Int, students: Students, swapper: Coordinator.Swapper, parent: Coordinator.Parent, imageView: ImageView): Unit = {
     var population = Population.createPopulation(students)
 
     for (i <- 0 until Coordinator.N_GENERATIONS) {
       val (mean, stddev) = population.getScoreStats()
-      println(i + ":\t%.3f\t\tstd: %.3f".format(mean, stddev))
+      println("%2d:\t%3d:\t%.3f\t\tstd: %.3f".format(id, i, mean, stddev))
       visualizePopulation(imageView, population)
 
       population = population.generation()
@@ -163,10 +164,10 @@ class Coordinator(imageViews: Array[ImageView], chromosomeView: ImageView, resul
   private def createChildThreads(students: Students, parentConnections: List[Coordinator.Parent]): IndexedSeq[Thread] = {
     val exchanger = new Coordinator.Swapper
 
-    def createThread(students: Students, swapper: Coordinator.Swapper, parent: Coordinator.Parent, iv: ImageView): Thread = {
+    def createThread(id: Int, students: Students, swapper: Coordinator.Swapper, parent: Coordinator.Parent, iv: ImageView): Thread = {
       val task: Task[Unit] = new Task[Unit]() {
         override def call(): Unit = {
-          runGeneticAlgorithm(students, swapper, parent, iv)
+          runGeneticAlgorithm(id, students, swapper, parent, iv)
         }
       }
       val th = new Thread(task)
@@ -176,7 +177,7 @@ class Coordinator(imageViews: Array[ImageView], chromosomeView: ImageView, resul
     }
 
     for (i <- this.imageViews.indices)
-        yield createThread(students, exchanger, parentConnections(i), this.imageViews(i))
+        yield createThread(i, students, exchanger, parentConnections(i), this.imageViews(i))
   }
 
   /**
