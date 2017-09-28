@@ -1,5 +1,9 @@
 package geneticparallel
 
+import java.util
+import java.util.concurrent.ThreadLocalRandom
+
+import scala.collection.JavaConversions._
 import scala.collection.mutable.ArrayBuffer
 import scalafx.scene.image.{Image, WritableImage}
 import scalafx.scene.paint.Color
@@ -34,9 +38,10 @@ object Chromosome {
     */
   def createRandom(): Chromosome = {
     val indexes = (0 until Students.N_STUDENTS).toList
-    val list = scala.util.Random.shuffle(indexes)
+    val list: util.List[Int] = new util.ArrayList[Int](indexes)
+    util.Collections.shuffle(list, ThreadLocalRandom.current())
 
-    new Chromosome(list)
+    new Chromosome(list.toList)
   }
 }
 
@@ -69,8 +74,10 @@ case class Chromosome(private val seating: List[Int]) {
     * @return The newly born child chromosome.
     */
   def mate(other: Chromosome): Chromosome = {
-    val changeIndices = scala.util.Random.shuffle((0 until Students.N_STUDENTS).toList)
-      .take(Chromosome.NUM_SWAP)
+    val list: util.List[Int] = new util.ArrayList[Int](0 until Students.N_STUDENTS)
+    util.Collections.shuffle(list, ThreadLocalRandom.current())
+
+    val changeIndices = list.take(Chromosome.NUM_SWAP)
 
     val newArray = this.seating.toArray
     val swapped = ArrayBuffer[Int]()
@@ -89,7 +96,8 @@ case class Chromosome(private val seating: List[Int]) {
       }
     }
 
-    if (scala.util.Random.nextInt(100) < Chromosome.MUTATION_CHANCE) {
+    val random = ThreadLocalRandom.current()
+    if (random.nextInt(100) < Chromosome.MUTATION_CHANCE) {
       mutate(newArray)
     }
 
@@ -106,13 +114,15 @@ case class Chromosome(private val seating: List[Int]) {
     * @param newArray The array representing the chromosome.
     */
   private def mutate(newArray: Array[Int]): Unit = {
-    val num_mutations = (scala.util.Random.nextGaussian() * Chromosome.AVG_NUM_MUTATIONS).toInt
+    val random = ThreadLocalRandom.current()
+    val numMutations = (random.nextGaussian() * Chromosome.AVG_NUM_MUTATIONS).toInt
 
-    val mutateIndices = scala.util.Random.shuffle((0 until Students.N_STUDENTS).toList)
-      .take(num_mutations)
+    val list = new util.ArrayList[Int](0 until Students.N_STUDENTS)
+    util.Collections.shuffle(list, random)
+    val mutateIndices = list.take(numMutations)
 
     for (i <- mutateIndices) {
-      val other_i = scala.util.Random.nextInt(Students.N_STUDENTS)
+      val other_i = random.nextInt(Students.N_STUDENTS)
 
       val prev_v = newArray(i)
       val new_v = newArray(other_i)
@@ -221,8 +231,10 @@ case class Population(students: Students, chromosomes: List[Chromosome]) {
     }
 
     for (i <- Population.NUM_KEEP until Population.NUM_CHROMOSOMES) {
-      val parents = scala.util.Random.shuffle((0 until Population.NUM_KEEP).toList)
-        .take(2).toArray
+
+      val list: util.List[Int] = new util.ArrayList[Int](0 until Population.NUM_KEEP)
+      util.Collections.shuffle(list, ThreadLocalRandom.current())
+      val parents = list.take(2).toArray
       val c = chromosomes(parents(0)).mate(chromosomes(parents(1)))
 
       newChromosomes.update(i, c)
@@ -288,7 +300,9 @@ case class Population(students: Students, chromosomes: List[Chromosome]) {
     val image = new WritableImage(width, height)
     val pw = image.getPixelWriter
 
-    val shuffledChromosomes = scala.util.Random.shuffle(chromosomes.toIterable).toArray
+    val list: util.List[Chromosome] = new util.ArrayList[Chromosome](chromosomes)
+    util.Collections.shuffle(list, ThreadLocalRandom.current())
+    val shuffledChromosomes: Array[Chromosome] = list.toList.toArray
 
     for (x <- 0 until Population.CHROM_COLUMNS; y <- 0 until Population.CHROM_ROWS) {
       val index = y * Population.CHROM_COLUMNS + x
@@ -369,8 +383,9 @@ object Students {
     * @return A randomly generated set of student preferences.
     */
   def createStudents(): Students = {
+    val random = ThreadLocalRandom.current()
     val colors = for (s1 <- 0 until N_STUDENTS) yield Color.rgb(
-      scala.util.Random.nextInt(256),
+      random.nextInt(256),
       0,
       0
     )
